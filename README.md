@@ -54,27 +54,45 @@ Calcul automatique de 7 statuts selon l'occupation :
 ## 🚀 Installation Rapide
 
 ### Prérequis
-- Firefox 109+ (ou Firefox Developer Edition)
+- **Firefox 109+** (ou [Firefox Developer Edition](https://www.mozilla.org/firefox/developer/) recommandé)
 - Accès à StayNTouch PMS et Dmbook Pro
 
 ### Installation en 3 étapes
 
-1️⃣ **Générer les icônes**
-```
-Ouvrir : icons/generate-icons.html dans votre navigateur
-→ Télécharger les 3 icônes PNG
-→ Les placer dans le dossier icons/
-```
+#### 1️⃣ **Télécharger l'extension**
 
-2️⃣ **Charger l'extension**
+Clonez ou téléchargez ce repository :
+```bash
+git clone https://github.com/Owltus/hotel-manager-extension.git
 ```
-Firefox → about:debugging
-→ "Ce Firefox"
-→ "Charger un module complémentaire temporaire"
-→ Sélectionner manifest.json
-```
+Ou téléchargez le ZIP : [Code → Download ZIP](https://github.com/Owltus/hotel-manager-extension/archive/refs/heads/main.zip)
 
-3️⃣ **C'est prêt !** 🎉
+#### 2️⃣ **Générer les icônes**
+
+Ouvrez dans votre navigateur :
+```
+icons/generate-icons.html
+```
+→ Téléchargez les 3 icônes PNG (16x16, 48x48, 128x128)  
+→ Placez-les dans le dossier `icons/`
+
+#### 3️⃣ **Charger l'extension dans Firefox**
+
+**Méthode via `about:debugging` (Extension temporaire)** :
+
+1. Ouvrez Firefox
+2. Dans la barre d'adresse, tapez : **`about:debugging`**
+3. Cliquez sur **"Ce Firefox"** dans le menu de gauche
+4. Cliquez sur **"Charger un module complémentaire temporaire..."**
+5. Naviguez vers le dossier de l'extension et sélectionnez **`manifest.json`**
+
+✅ **L'extension est installée !** Vous verrez l'icône dans la barre d'outils.
+
+> ⚠️ **Note** : Avec Firefox standard, l'extension temporaire disparaît au redémarrage du navigateur. Pour une installation persistante, utilisez [Firefox Developer Edition](https://www.mozilla.org/firefox/developer/).
+
+### 🎉 C'est prêt !
+
+L'extension est maintenant active. Visitez StayNTouch ou Dmbook Pro pour commencer à scraper !
 
 ---
 
@@ -218,26 +236,32 @@ L'extension analyse les données de réservation pour calculer automatiquement l
 
 ## 🛠️ Installation sur Plusieurs PC
 
-### Option 1 : Extension Temporaire (Firefox normal)
+### Option 1 : Extension Temporaire via `about:debugging` (Firefox standard)
 
 **Sur chaque PC** :
-1. Extraire le dossier de l'extension
-2. `about:debugging` → Charger module temporaire
-3. ⚠️ **Recharger à chaque démarrage de Firefox**
+1. Cloner/télécharger le dossier de l'extension
+2. Ouvrir Firefox et taper **`about:debugging`** dans la barre d'adresse
+3. Cliquer sur **"Ce Firefox"**
+4. Cliquer sur **"Charger un module complémentaire temporaire..."**
+5. Sélectionner le fichier **`manifest.json`**
 
-### Option 2 : Firefox Developer Edition ⭐ (Recommandé)
+⚠️ **Limitation** : L'extension doit être rechargée à chaque démarrage de Firefox.
+
+### Option 2 : Firefox Developer Edition ⭐ (Recommandé pour usage quotidien)
 
 **Sur chaque PC** :
 1. Installer [Firefox Developer Edition](https://www.mozilla.org/firefox/developer/)
-2. Charger l'extension **UNE SEULE FOIS**
-3. ✅ **Persiste entre les redémarrages**
+2. Suivre la même procédure `about:debugging` (voir Option 1)
+3. ✅ **L'extension persiste entre les redémarrages !**
 
-### Option 3 : Publication Mozilla Add-ons (Officiel)
+### Option 3 : Publication Mozilla Add-ons (Installation permanente officielle)
 
 **Une fois pour tous** :
-1. Soumettre à [Mozilla Add-ons](https://addons.mozilla.org)
-2. Validation (~1 semaine)
-3. Installation permanente pour tout le monde
+1. Soumettre à [Mozilla Add-ons](https://addons.mozilla.org/developers/)
+2. Attendre la validation (~1 semaine)
+3. ✅ Installation permanente en 1 clic pour tout le monde
+
+> 💡 **Astuce** : Pour tester rapidement, utilisez `about:debugging`. Pour un usage quotidien, installez Firefox Developer Edition.
 
 ---
 
