@@ -127,11 +127,18 @@ function extractSingleRoom(roomEl) {
   // Statuts current et next (pour calcul automatique)
   const currentStatusEl = roomEl.querySelector('.current .guest-status');
   const nextStatusEl = roomEl.querySelector('.next .guest-status');
-  
+
   let currentStatus = currentStatusEl ? currentStatusEl.textContent.trim() : 'Not Reserved';
   let nextStatus = nextStatusEl ? nextStatusEl.textContent.trim() : 'Not Reserved';
-  
-  console.log(`Chambre ${numero}: current="${currentStatus}" next="${nextStatus}"`);
+
+  // Extraire les classes CSS pour plus de contexte
+  const currentClasses = currentStatusEl ? Array.from(currentStatusEl.classList) : [];
+  const nextClasses = nextStatusEl ? Array.from(nextStatusEl.classList) : [];
+
+  // Détecter les statuts combinés (ex: "Departed / Arrival" pour day use)
+  const isCombinedStatus = currentStatus.includes('/') || nextStatus.includes('/');
+
+  console.log(`Chambre ${numero}: current="${currentStatus}" next="${nextStatus}" combined=${isCombinedStatus}`);
   
   // Extraire les heures depuis .reservation-time
   const currentTimeEl = roomEl.querySelector('.current .reservation-time');
@@ -195,10 +202,33 @@ function extractSingleRoom(roomEl) {
   // Vacant
   const vacantEl = roomEl.querySelector('.show-vacant');
   const vacant = vacantEl !== null;
-  
+
+  // Détection OOO (Out of Order)
+  const oooEl = roomEl.querySelector('.service-status');
+  const isOOO = oooEl !== null;
+  let oooReason = null;
+  let oooUntil = null;
+  if (isOOO && oooEl) {
+    const reasonEl = oooEl.querySelector('.service-status-reason');
+    oooReason = reasonEl ? reasonEl.textContent.trim() : null;
+    const untilMatch = oooEl.textContent.match(/until\s+\*\*(\d{2}-\d{2}-\d{4})\*\*/);
+    oooUntil = untilMatch ? untilMatch[1] : null;
+  }
+
   // Détection "Stayover"
   const isStayover = statutReservation && statutReservation.includes('Stayover');
-  
+
+  // Détection "Day Use" (arrivée et départ le même jour)
+  // Conditions STRICTES:
+  // 1. Dates check-in === check-out (même jour)
+  // 2. Statuts contiennent "Arrival" (nouveau client arrive)
+  // 3. Statuts NE contiennent PAS "Departed" (sinon c'est une rotation)
+  const isDayUse = (checkIn === checkOut && checkIn !== null) &&
+                   currentStatus.includes('Arrival') &&
+                   nextStatus.includes('Arrival') &&
+                   !currentStatus.includes('Departed') &&
+                   !nextStatus.includes('Departed');
+
   return {
     id: numero,
     numero: numero,
@@ -207,13 +237,20 @@ function extractSingleRoom(roomEl) {
     statut_reservation: statutReservation,
     current_status: currentStatus,
     next_status: nextStatus,
+    current_classes: currentClasses,
+    next_classes: nextClasses,
+    is_combined_status: isCombinedStatus,
     check_in: checkIn,
     check_out: checkOut,
     check_in_time: checkInTime,
     check_out_time: checkOutTime,
     occupancy: occupancy,
     vacant: vacant,
-    is_stayover: isStayover
+    is_stayover: isStayover,
+    is_day_use: isDayUse,
+    is_ooo: isOOO,
+    ooo_reason: oooReason,
+    ooo_until: oooUntil
   };
 }
 
