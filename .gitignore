@@ -1,0 +1,33 @@
+# Extension artifacts
+web-ext-artifacts/
+*.zip
+*.xpi
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary
+*.tmp
+*.temp
+.cache/
+
+# Node modules (if you add build tools later)
+node_modules/
+
+# Personal data (never commit)
+config-personal.js
+*.env
+.env.local

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Générateur d'icônes Hotel Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #1557b0;
+        }
+        .instructions {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 600px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏨 Générateur d'icônes Hotel Manager</h1>
+    
+    <div class="instructions">
+        <h3>Instructions :</h3>
+        <ol>
+            <li>Cliquez sur les boutons ci-dessous pour télécharger chaque icône</li>
+            <li>Sauvegardez les fichiers dans le dossier <code>icons/</code></li>
+            <li>Nommez-les exactement : <code>icon-16.png</code>, <code>icon-48.png</code>, <code>icon-128.png</code></li>
+            <li>Rechargez l'extension dans Firefox</li>
+        </ol>
+    </div>
+
+    <h3>Icône 16x16</h3>
+    <canvas id="canvas16" width="16" height="16"></canvas>
+    <br>
+    <button onclick="downloadIcon(16)">Télécharger icon-16.png</button>
+
+    <h3>Icône 48x48</h3>
+    <canvas id="canvas48" width="48" height="48"></canvas>
+    <br>
+    <button onclick="downloadIcon(48)">Télécharger icon-48.png</button>
+
+    <h3>Icône 128x128</h3>
+    <canvas id="canvas128" width="128" height="128"></canvas>
+    <br>
+    <button onclick="downloadIcon(128)">Télécharger icon-128.png</button>
+
+    <script>
+        // Fonction pour dessiner l'icône
+        function drawIcon(size) {
+            const canvas = document.getElementById('canvas' + size);
+            const ctx = canvas.getContext('2d');
+            
+            // Fond bleu
+            ctx.fillStyle = '#1a73e8';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Emoji hôtel (texte)
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏨', size / 2, size / 2);
+        }
+
+        // Dessiner toutes les icônes au chargement
+        drawIcon(16);
+        drawIcon(48);
+        drawIcon(128);
+
+        // Fonction pour télécharger une icône
+        function downloadIcon(size) {
+            const canvas = document.getElementById('canvas' + size);
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = 'icon-' + size + '.png';
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>
+

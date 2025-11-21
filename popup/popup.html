@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Export en haut -->
+    <section class="section">
+      <div id="results-summary" class="summary">
+        <div class="summary-grid">
+          <div class="summary-box">
+            <div class="summary-label">Chambres</div>
+            <div id="total-rooms" class="summary-value">0/80</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Tickets</div>
+            <div id="total-tickets" class="summary-value">0</div>
+          </div>
+          <div class="summary-box-buttons">
+            <button id="export-csv-btn" class="btn btn-primary" disabled>
+              Exporter
+            </button>
+            <button id="refresh-btn" class="btn btn-secondary">
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="consolidation-status" class="hidden"></div>
+    </section>
+
+    <!-- Scraping sections côte à côte -->
+    <div class="scraping-grid">
+      <!-- Scraping Tickets -->
+      <section class="section">
+        <h2>DMbook Tickets TECHNIQUE</h2>
+        <div class="button-row">
+          <button id="scrape-tickets-btn" class="btn btn-primary">
+            Scraper
+          </button>
+          <button id="toggle-preview-btn" class="btn btn-secondary hidden">
+            Aperçu
+          </button>
+        </div>
+      </section>
+
+      <!-- Scraping Chambres -->
+      <section class="section">
+        <h2>Stayntouch Statuts Chambres</h2>
+        <div class="button-row">
+          <button id="scrape-rooms-btn" class="btn btn-primary">
+            Scraper
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Aperçu tickets (pleine largeur) -->
+    <div id="tickets-preview" class="preview hidden"></div>
+
+    <!-- Messages d'erreur -->
+    <div id="error-message" class="error-message hidden"></div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <p id="loading-text">Traitement en cours...</p>
+    </div>
+  </div>
+
+  <script src="../lib/config.js"></script>
+  <script src="../lib/rooms-list.js"></script>
+  <script src="../lib/status-calculator.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+
