@@ -28,7 +28,7 @@
     },
     {
       "matches": ["*://*.dmbook.pro/*"],
-      "js": ["content-scripts/dmbook-scraper.js"],
+      "js": ["lib/status-calculator.js", "content-scripts/dmbook-scraper.js"],
       "run_at": "document_idle"
     }
   ],
