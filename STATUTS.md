@@ -8,17 +8,16 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 ### Statuts Prioritaires (traités en premier)
 
-#### `(OOO)` - Out of Order
+#### `(bloquée)` - Chambre Bloquée
 **Priorité:** BLOQUÉE
-**Couleur:** Violet
-**Description:** Chambre hors service en maintenance
+**Description:** Chambre en maintenance
 
 **Conditions de détection:**
 - Présence d'un élément `.service-status` dans le HTML
 - Chambre non disponible temporairement pour raison technique
 
 **Exemple d'affichage:**
-- `(OOO) jusqu'au 24-11-2025 (Out of Order)`
+- `(bloquée)`
 
 **Action requise:** Attendre la fin de la maintenance
 
@@ -26,15 +25,14 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(day-use)` - Day Use
 **Priorité:** HAUTE
-**Couleur:** Orange
-**Description:** Arrivée et départ le même jour (rotation rapide)
+**Description:** Rotation rapide
 
 **Conditions de détection:**
 - Statut combiné: "Departed / Arrival" dans le même span
 - OU dates check-in et check-out identiques
 
 **Exemple d'affichage:**
-- `(day-use) 09:00 am-02:00 pm`
+- `(day-use)`
 
 **Action requise:** Nettoyage rapide entre les deux clients (rotation dans la journée)
 
@@ -44,8 +42,7 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(o)` - Occupé (Stayover)
 **Priorité:** BASSE (MOYENNE si DIRTY)
-**Couleur:** Vert
-**Description:** Client en séjour, reste dans la chambre
+**Description:** Client en séjour
 
 **Conditions de détection:**
 - Current: "Stayover" / Next: "Stayover"
@@ -57,8 +54,7 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(in)` - Client Installé
 **Priorité:** BASSE
-**Couleur:** Bleu
-**Description:** Client déjà arrivé et installé
+**Description:** Client installé peut importe si il y en avait un avant
 
 **Conditions de détection:**
 - Current: "Arrived" (sans "Departure")
@@ -69,15 +65,14 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(out/inc)` - Rotation Prévue
 **Priorité:** HAUTE
-**Couleur:** Orange
-**Description:** Client parti, nouveau client arrive bientôt
+**Description:** Client parti, nouveau arrive
 
 **Conditions de détection:**
 - Current: "Departed" (sans "Arrival")
 - Next: "Arrival"
 
 **Exemple d'affichage:**
-- `(out/inc) 02:00 pm`
+- `(out/inc)`
 
 **Action requise:** Nettoyage complet urgent avant l'arrivée du prochain client
 
@@ -85,15 +80,14 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(out/dispo)` - Départ Aujourd'hui
 **Priorité:** HAUTE
-**Couleur:** Jaune
-**Description:** Client encore en chambre, part aujourd'hui, pas de nouvelle arrivée
+**Description:** Départ aujourd'hui, pas d'arrivée
 
 **Conditions de détection:**
 - Current: "Due out"
 - Next: "Due out" (même client)
 
 **Exemple d'affichage:**
-- `(out/dispo) 02:00 pm`
+- `(out/dispo)`
 
 **Action requise:** Attendre le départ puis nettoyage complet
 
@@ -101,15 +95,14 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(inc)` - Arrivée Prévue
 **Priorité:** MOYENNE
-**Couleur:** Bleu
-**Description:** Nouvelle arrivée attendue, chambre vide
+**Description:** Arrivée prévue et pas de client avant
 
 **Conditions de détection:**
 - Current: "Arrival" ou "Not Reserved" (chambre vide)
 - Next: "Arrival"
 
 **Exemple d'affichage:**
-- `(inc) 02:00 pm`
+- `(inc)`
 
 **Action requise:** Préparer la chambre avant l'arrivée
 
@@ -117,15 +110,14 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(out)` - Client Parti
 **Priorité:** MOYENNE (HAUTE si DIRTY)
-**Couleur:** Jaune
-**Description:** Client déjà parti, pas de nouvelle arrivée imminente
+**Description:** Client parti et du coup de nouveau qui arrive
 
 **Conditions de détection:**
 - Current: "Departed" (sans "Arrival")
 - Next: "Not Reserved" ou "Departed"
 
 **Exemple d'affichage:**
-- `(out) OUT`
+- `(out)`
 
 **Action requise:** Nettoyage complet
 
@@ -133,8 +125,7 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `(dispo)` - Disponible
 **Priorité:** BASSE
-**Couleur:** Gris
-**Description:** Chambre vide et disponible, aucune réservation
+**Description:** Disponible
 
 **Conditions de détection:**
 - Vacant = true
@@ -146,8 +137,7 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 #### `null` - Statut Non Reconnu
 **Priorité:** HAUTE
-**Couleur:** Rouge
-**Description:** Situation non gérée par le système
+**Description:** Statut non reconnu - Vérification manuelle requise
 
 **Conditions de détection:**
 - Aucune règle ne correspond aux statuts détectés
@@ -178,8 +168,7 @@ Les priorités sont ajustées automatiquement selon:
 ```
 Current: "Due out"
 Next: "Due out"
-Check-out time: "02:00 pm"
-→ Statut: (out/dispo) 02:00 pm
+→ Statut: (out/dispo)
 ```
 
 ### Exemple 2: Chambre 108 (Day Use)
@@ -188,7 +177,7 @@ Current: "Arrival" (no-show class)
 Next: "Arrival"
 Check-in: "2025-11-21"
 Check-out: "2025-11-21"
-→ Statut: (day-use) 09:00 am-02:00 pm
+→ Statut: (day-use)
 ```
 
 ### Exemple 3: Chambre 103 (Stayover)
@@ -202,31 +191,31 @@ Next: "Stayover"
 ```
 Current: "Departed"
 Next: "Departed"
-→ Statut: (out) OUT
+→ Statut: (out)
 ```
 
-### Exemple 5: Chambre 211 (OOO)
+### Exemple 5: Chambre 211 (Bloquée)
 ```
 Service status: "OOO until 24-11-2025 (Out of Order)"
-→ Statut: (OOO) jusqu'au 24-11-2025 (Out of Order)
+→ Statut: (bloquée)
 ```
 
 ---
 
 ## Tableau Récapitulatif
 
-| Statut | Priorité | Couleur | Action |
-|--------|----------|---------|--------|
-| `(OOO)` | BLOQUÉE | Violet | Attendre fin maintenance |
-| `(day-use)` | HAUTE | Orange | Rotation rapide |
-| `(out/inc)` | HAUTE | Orange | Nettoyage urgent |
-| `(out/dispo)` | HAUTE | Jaune | Départ + nettoyage |
-| `(out)` | MOYENNE | Jaune | Nettoyage complet |
-| `(inc)` | MOYENNE | Bleu | Préparer chambre |
-| `(in)` | BASSE | Bleu | Client installé |
-| `(o)` | BASSE | Vert | Recouche |
-| `(dispo)` | BASSE | Gris | Maintenir propre |
-| `null` | HAUTE | Rouge | Vérification manuelle |
+| Statut | Priorité | Description |
+|--------|----------|-------------|
+| `(bloquée)` | BLOQUÉE | Chambre en maintenance |
+| `(day-use)` | HAUTE | Rotation rapide |
+| `(out/inc)` | HAUTE | Client parti, nouveau arrive |
+| `(out/dispo)` | HAUTE | Départ aujourd'hui, pas d'arrivée |
+| `null` | HAUTE | Statut non reconnu - Vérification manuelle requise |
+| `(out)` | MOYENNE | Client parti et du coup de nouveau qui arrive |
+| `(inc)` | MOYENNE | Arrivée prévue et pas de client avant |
+| `(in)` | BASSE | Client installé peut importe si il y en avait un avant |
+| `(o)` | BASSE | Client en séjour |
+| `(dispo)` | BASSE | Disponible |
 
 ---
 
