@@ -28,8 +28,12 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 **Description:** Rotation rapide
 
 **Conditions de détection:**
-- Statut combiné: "Departed / Arrival" dans le même span
-- OU dates check-in et check-out identiques
+- **UNIQUEMENT:** Dates check-in et check-out identiques (même jour)
+- Exemple: check-in="2025-11-21" ET check-out="2025-11-21"
+
+**⚠️ Important:** Le statut "Departed / Arrival" seul ne signifie PAS un day-use!
+- "Departed / Arrival" = rotation normale (out/inc)
+- Day-use = dates identiques
 
 **Exemple d'affichage:**
 - `(day-use)`
@@ -68,8 +72,10 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 **Description:** Client parti, nouveau arrive
 
 **Conditions de détection:**
-- Current: "Departed" (sans "Arrival")
-- Next: "Arrival"
+- Current: "Departed" ET Next: "Arrival"
+- **OU** Current: "Departed / Arrival" (statut combiné)
+
+**Note:** Le statut "Departed / Arrival" indique une rotation, PAS un day-use.
 
 **Exemple d'affichage:**
 - `(out/inc)`
@@ -171,13 +177,22 @@ Next: "Due out"
 → Statut: (out/dispo)
 ```
 
-### Exemple 2: Chambre 108 (Day Use)
+### Exemple 2: Chambre 108 (Day Use - VRAI)
 ```
 Current: "Arrival" (no-show class)
 Next: "Arrival"
 Check-in: "2025-11-21"
-Check-out: "2025-11-21"
+Check-out: "2025-11-21"  ← Même date!
 → Statut: (day-use)
+```
+
+### Exemple 2b: Chambre 401 (Rotation normale, PAS day-use)
+```
+Current: "Departed / Arrival"
+Next: "Departed / Arrival"
+Check-in: "2025-11-21"
+Check-out: "2025-11-22"  ← Dates différentes!
+→ Statut: (out/inc)  ← Rotation normale, pas day-use
 ```
 
 ### Exemple 3: Chambre 103 (Stayover)

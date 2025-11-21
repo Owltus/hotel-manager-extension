@@ -219,9 +219,8 @@ function extractSingleRoom(roomEl) {
   const isStayover = statutReservation && statutReservation.includes('Stayover');
 
   // Détection "Day Use" (arrivée et départ le même jour)
-  const isDayUse = isCombinedStatus &&
-                   (currentStatus.includes('Departed') && currentStatus.includes('Arrival')) ||
-                   (checkIn === checkOut && checkIn !== null);
+  // UNIQUEMENT basé sur les dates, pas sur les statuts combinés
+  const isDayUse = (checkIn === checkOut && checkIn !== null);
 
   return {
     id: numero,
