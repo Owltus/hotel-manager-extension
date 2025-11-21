@@ -135,7 +135,7 @@ Le système de gestion des statuts de chambres analyse automatiquement l'état d
 
 ---
 
-#### `null` - Statut Non Reconnu
+#### `(null)` - Statut Non Reconnu
 **Priorité:** HAUTE
 **Description:** Statut non reconnu - Vérification manuelle requise
 
@@ -210,7 +210,7 @@ Service status: "OOO until 24-11-2025 (Out of Order)"
 | `(day-use)` | HAUTE | Rotation rapide |
 | `(out/inc)` | HAUTE | Client parti, nouveau arrive |
 | `(out/dispo)` | HAUTE | Départ aujourd'hui, pas d'arrivée |
-| `null` | HAUTE | Statut non reconnu - Vérification manuelle requise |
+| `(null)` | HAUTE | Statut non reconnu - Vérification manuelle requise |
 | `(out)` | MOYENNE | Client parti et du coup de nouveau qui arrive |
 | `(inc)` | MOYENNE | Arrivée prévue et pas de client avant |
 | `(in)` | BASSE | Client installé peut importe si il y en avait un avant |
