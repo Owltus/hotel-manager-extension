@@ -1,0 +1,26 @@
+# Claude Code config (historique d'audit Borg local)
+.claude/
+
+# Builds / artefacts
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs / temp
+*.log
+*.tmp
+*.bak

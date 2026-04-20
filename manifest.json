@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "Hotel Manager - Gestion Hôtel",
+  "version": "3.0.0",
+  "description": "Extension pour scraper et consolider les données de chambres d'hôtel depuis StayNTouch PMS et Dmbook Pro",
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "*://*.stayntouch.com/*",
+    "*://app.eu1.stayntouch.com/*",
+    "*://*.dmbook.pro/*",
+    "*://pms-api.prodeu2-eufr.stayntouch.com/*"
+  ],
+  
+  "background": {
+    "scripts": ["background/service-worker.js"]
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.stayntouch.com/*",
+        "*://app.stayntouch.com/*",
+        "*://app.eu1.stayntouch.com/*",
+        "*://stayntouch.com/*"
+      ],
+      "js": ["content-scripts/stayntouch-scraper.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.dmbook.pro/*"],
+      "js": ["lib/status-calculator.js", "lib/rooms-list.js", "content-scripts/dmbook-scraper.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "hotel-manager@dmbook.extension",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}
+
