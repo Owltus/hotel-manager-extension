@@ -1,17 +1,13 @@
-// Content script pour scraper Dmbook Pro
-// Interface simplifiée avec scraping manuel des tickets seulement
-// Version simplifiée - suppression du scraping intelligent StayNTouch
+// Content script pour scraper Dmbook Pro.
 
-// Content script DMBOOK chargé
+// Timer pending pour addImportantRoomsToList — annulable sur re-init pour éviter qu'une passe précédente ne race avec la nouvelle.
+let pendingImportantRoomsTimer = null;
 
-// Auto-démarrage quand la page est chargée
-setTimeout(() => {
-  if (document.readyState === 'complete') {
-    initDmbookInterface();
-  } else {
-    window.addEventListener('load', initDmbookInterface);
-  }
-}, 1000);
+if (document.readyState === 'complete') {
+  initDmbookInterface();
+} else {
+  window.addEventListener('load', initDmbookInterface, { once: true });
+}
 
 /**
  * Initialiser l'interface Dmbook
@@ -44,6 +40,20 @@ async function initDmbookInterface() {
   const existingReset = document.getElementById('hotel-manager-reset-btn');
   if (existingReset) {
     existingReset.remove();
+  }
+  const existingData = document.getElementById('hotel-manager-data-btn');
+  if (existingData) {
+    existingData.remove();
+  }
+  const existingDataModal = document.getElementById('hotel-manager-data-modal');
+  if (existingDataModal) {
+    if (existingDataModal._cleanup) existingDataModal._cleanup(null);
+    else existingDataModal.remove();
+  }
+  const existingNamePrompt = document.getElementById('hotel-manager-name-prompt');
+  if (existingNamePrompt) {
+    if (existingNamePrompt._cleanup) existingNamePrompt._cleanup(null);
+    else existingNamePrompt.remove();
   }
   const existingModal = document.getElementById('hotel-manager-modal');
   if (existingModal) {
@@ -80,6 +90,11 @@ const BUTTON_ICONS = {
   rotateCcw: [
     { tag: 'path', attrs: { d: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' } },
     { tag: 'path', attrs: { d: 'M3 3v5h5' } }
+  ],
+  database: [
+    { tag: 'ellipse', attrs: { cx: '12', cy: '5', rx: '9', ry: '3' } },
+    { tag: 'path', attrs: { d: 'M3 5V19A9 3 0 0 0 21 19V5' } },
+    { tag: 'path', attrs: { d: 'M3 12A9 3 0 0 0 21 12' } }
   ]
 };
 
@@ -170,6 +185,14 @@ async function addSimpleButton() {
     onClick: handleCustomListExport
   });
 
+  const dataButton = createHotelManagerButton({
+    id: 'hotel-manager-data-btn',
+    title: 'Listes de données (checklist persistante)',
+    bgColor: '#198754',
+    iconName: 'database',
+    onClick: handleDataListsExport
+  });
+
   const resetButton = createHotelManagerButton({
     id: 'hotel-manager-reset-btn',
     title: 'Réinitialiser les données',
@@ -181,6 +204,7 @@ async function addSimpleButton() {
   pullRightElement.appendChild(pdfButton);
   pullRightElement.appendChild(roomingButton);
   pullRightElement.appendChild(customButton);
+  pullRightElement.appendChild(dataButton);
   pullRightElement.appendChild(resetButton);
 
   // Ajouter le bouton Filtre à côté du Total
@@ -220,8 +244,9 @@ async function performAutoScraping() {
     
     // Logger tous les tickets de manière simple
     
-    // Ajouter les statuts de toutes les chambres importantes directement dans la liste
-    setTimeout(() => {
+    if (pendingImportantRoomsTimer !== null) clearTimeout(pendingImportantRoomsTimer);
+    pendingImportantRoomsTimer = setTimeout(() => {
+      pendingImportantRoomsTimer = null;
       addImportantRoomsToList();
     }, 1500);
     
@@ -1061,23 +1086,31 @@ async function handleCustomListExport(button) {
   }, 3000);
 }
 
-// Modale de saisie du titre. Résout avec la string saisie, ou null si annulé.
-function promptCustomTitle() {
+function promptTextInput(options = {}) {
+  const {
+    id = 'hotel-manager-text-prompt',
+    title = 'Saisir',
+    placeholder = '',
+    currentValue = '',
+    okLabel = 'Valider',
+    okBgColor = '#198754',
+    zIndex = 999999
+  } = options;
+
   return new Promise((resolve) => {
-    // Fermer proprement une modale orpheline (listener + resolve de la précédente).
-    const existing = document.getElementById('hotel-manager-modal');
+    const existing = document.getElementById(id);
     if (existing) {
       if (existing._cleanup) existing._cleanup(null);
-      else existing.remove();
+      else { console.warn('[DMBOOK] Overlay sans _cleanup détecté, remove direct'); existing.remove(); }
     }
 
     const overlay = document.createElement('div');
-    overlay.id = 'hotel-manager-modal';
+    overlay.id = id;
     overlay.style.cssText = `
       position: fixed; inset: 0;
       background: rgba(0, 0, 0, 0.5);
       display: flex; align-items: center; justify-content: center;
-      z-index: 999999;
+      z-index: ${zIndex};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     `;
 
@@ -1091,15 +1124,16 @@ function promptCustomTitle() {
       max-width: 90vw;
     `;
 
-    const title = document.createElement('h3');
-    title.textContent = 'Titre de la liste';
-    title.style.cssText = 'margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #333;';
-    card.appendChild(title);
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = title;
+    titleEl.style.cssText = 'margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #333;';
+    card.appendChild(titleEl);
 
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 100;
-    input.placeholder = 'Ex: Chambres à contrôler';
+    input.placeholder = placeholder;
+    input.value = currentValue;
     input.style.cssText = 'width: 100%; padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; outline: none;';
     card.appendChild(input);
 
@@ -1114,15 +1148,15 @@ function promptCustomTitle() {
 
     const okBtn = document.createElement('button');
     okBtn.type = 'button';
-    okBtn.textContent = 'Générer PDF';
-    okBtn.style.cssText = 'padding: 6px 14px; border: none; background: #fd7e14; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;';
+    okBtn.textContent = okLabel;
+    okBtn.style.cssText = `padding: 6px 14px; border: none; background: ${okBgColor}; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;`;
     actions.appendChild(okBtn);
 
     card.appendChild(actions);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    setTimeout(() => input.focus(), 0);
+    setTimeout(() => { input.focus(); if (currentValue) input.select(); }, 0);
 
     let resolved = false;
     const cleanup = (value) => {
@@ -1143,6 +1177,16 @@ function promptCustomTitle() {
     cancelBtn.addEventListener('click', () => cleanup(null));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
     document.addEventListener('keydown', onKey);
+  });
+}
+
+function promptCustomTitle() {
+  return promptTextInput({
+    id: 'hotel-manager-modal',
+    title: 'Titre de la liste',
+    placeholder: 'Ex: Chambres à contrôler',
+    okLabel: 'Générer PDF',
+    okBgColor: '#fd7e14'
   });
 }
 
@@ -1266,6 +1310,7 @@ const PRINT_CSS = `
   td { padding: 5px 8px; vertical-align: top; }
   .col-check { width: 24px; text-align: center; vertical-align: middle; }
   .checkbox { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-radius: 2px; }
+  tr.row-checked .checkbox { background: #000; border-color: #000; }
   .col-chambre { width: 50px; vertical-align: middle; text-align: center; }
   .room-label { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 9pt; font-weight: 700; color: #333; background-color: #f0f0f0; border: 1px solid #ccc; }
   .room-label.pickup { background-color: #ff8c00; color: white; border-color: #ff8c00; }
@@ -1804,82 +1849,87 @@ function getStatusColor(status) {
  * La couleur dépend de l'heure: matin (02h-14h) = couleur matin, après-midi (14h-02h) = couleur après-midi
  * Exception: si INC présent → orange prioritaire (sauf si IN le matin)
  */
-function getStatusBadgeFromChambre(chambre) {
-  if (!chambre) return '';
-  
-  // Cas spéciaux prioritaires
-  if (chambre.is_ooo) {
-    return `<span class="status-badge gray">OUT OF ORDER</span>`;
-  }
-  
-  if (chambre.is_oos) {
-    return `<span class="status-badge gray">OUT OF SERVICE</span>`;
-  }
-  
-  if (chambre.is_day_use) {
-    return `<span class="status-badge yellow">DAY-USE</span>`;
-  }
-  
+function computeStatusBadge(chambre) {
+  if (!chambre) return null;
+
+  if (chambre.is_ooo) return { text: 'OUT OF ORDER', colorClass: 'gray' };
+  if (chambre.is_oos) return { text: 'OUT OF SERVICE', colorClass: 'gray' };
+  if (chambre.is_day_use) return { text: 'DAY-USE', colorClass: 'yellow' };
+
   const currentStatusRaw = chambre.current_status || '';
   const nextStatusRaw = chambre.next_status || '';
   const checkOutTime = chambre.check_out_time || null;
   const checkInTime = chambre.check_in_time || null;
-  
-  // Analyser la COMBINAISON de current et next avec détection EARLY/LATE
+
   const statuses = analyzeStayNTouchStatuses(currentStatusRaw, nextStatusRaw, checkOutTime, checkInTime);
-  
   const morningStatus = statuses.morning;
   const afternoonStatus = statuses.afternoon;
   const isEarly = statuses.isEarly;
   const isLate = statuses.isLate;
-  
-  // Vérifier l'heure actuelle (hôtel : matin = 02h-14h, après-midi = 14h-02h)
+
   const currentHour = new Date().getHours();
   const isMorning = currentHour >= 2 && currentHour < 14;
-  
-  let displayText = '';
-  let colorClass = 'green';
-  
-  // Construire le préfixe EARLY/LATE
+
   let prefix = '';
-  if (isLate && morningStatus === 'IN') {
-    prefix = 'LATE ';
-  } else if (isEarly && afternoonStatus === 'IN') {
-    prefix = 'EARLY ';
-  } else if (isEarly && afternoonStatus === 'INC') {
-    prefix = 'EARLY ';
-  }
-  
-  // Si les 2 statuts sont identiques → afficher une seule fois
+  if (isLate && morningStatus === 'IN') prefix = 'LATE ';
+  else if (isEarly && afternoonStatus === 'IN') prefix = 'EARLY ';
+  else if (isEarly && afternoonStatus === 'INC') prefix = 'EARLY ';
+
   if (morningStatus === afternoonStatus) {
-    displayText = prefix + morningStatus;
-    colorClass = getStatusColor(morningStatus);
-  } else {
-    // Statuts différents → afficher MATIN / APREM
-    displayText = `${prefix}${morningStatus} / ${afternoonStatus}`;
-    
-    // Couleur basée sur l'heure et les statuts
-    if (isMorning) {
-      // Avant 14h → couleur du statut MATIN
-      // Exception : si matin=IN, on garde rouge même avec INC l'après-midi
-      colorClass = getStatusColor(morningStatus);
-      
-      // Mais si matin n'est PAS IN et qu'il y a INC l'après-midi → orange prioritaire
-      if (morningStatus !== 'IN' && afternoonStatus === 'INC') {
-        colorClass = 'orange';
-      }
-    } else {
-      // Après 14h → couleur du statut APRÈS-MIDI
-      colorClass = getStatusColor(afternoonStatus);
-      
-      // Si INC présent → orange prioritaire
-      if (afternoonStatus === 'INC') {
-        colorClass = 'orange';
-      }
-    }
+    return { text: prefix + morningStatus, colorClass: getStatusColor(morningStatus) };
   }
-  
-  return `<span class="status-badge ${colorClass}">${displayText}</span>`;
+
+  let colorClass;
+  if (isMorning) {
+    colorClass = getStatusColor(morningStatus);
+    if (morningStatus !== 'IN' && afternoonStatus === 'INC') colorClass = 'orange';
+  } else {
+    colorClass = getStatusColor(afternoonStatus);
+    if (afternoonStatus === 'INC') colorClass = 'orange';
+  }
+  return { text: `${prefix}${morningStatus} / ${afternoonStatus}`, colorClass };
+}
+
+function getStatusBadgeFromChambre(chambre) {
+  const info = computeStatusBadge(chambre);
+  if (!info) return '';
+  return `<span class="status-badge ${info.colorClass}">${info.text}</span>`;
+}
+
+// KEEP IN SYNC with .status-badge.<color> rules in PRINT_CSS — rendering divergence sinon entre modale et PDF.
+const STATUS_BADGE_COLORS = {
+  orange: { bg: '#ff8c00', color: 'white' },
+  yellow: { bg: '#ffc107', color: '#333' },
+  red:    { bg: '#dc3545', color: 'white' },
+  blue:   { bg: '#007bff', color: 'white' },
+  green:  { bg: '#28a745', color: 'white' },
+  gray:   { bg: '#6c757d', color: 'white' }
+};
+
+function buildStatusBadgeElement(chambre) {
+  const info = computeStatusBadge(chambre);
+  if (!info) return null;
+  const color = STATUS_BADGE_COLORS[info.colorClass] || STATUS_BADGE_COLORS.gray;
+  const span = document.createElement('span');
+  span.textContent = info.text;
+  // Bloc pleine largeur de sa colonne + centré : mêmes règles que .status-badge de PRINT_CSS.
+  span.style.cssText = `
+    display: block;
+    width: 100%;
+    padding: 3px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.3;
+    text-align: center;
+    background: ${color.bg};
+    color: ${color.color};
+    white-space: nowrap;
+    box-sizing: border-box;
+  `;
+  return span;
 }
 
 /**
@@ -2222,39 +2272,33 @@ function formatConsolidatedToTXT(consolidatedData) {
  */
 async function enhanceTicketDisplay() {
   try {
-    // Récupérer les données des chambres si disponibles
     const result = await browser.storage.local.get(['chambres_data']);
     const chambresData = result.chambres_data?.chambres || [];
-    
-    // Trouver tous les éléments de contenu de tickets
+
+    // Map O(1) au lieu de .find() O(N) par ticket — 80 chambres × 50 tickets sinon.
+    const chambresByNumero = new Map();
+    chambresData.forEach(c => {
+      if (c.numero != null) chambresByNumero.set(String(c.numero), c);
+    });
+
     const ticketContents = document.querySelectorAll('.ticket-content .content');
-    
     let ticketsAmeliores = 0;
-    
+
     ticketContents.forEach((contentEl, index) => {
       try {
-        // Le texte est dans le premier noeud texte, avant les spans author/icons
         let textNode = contentEl.firstChild;
-        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
-          return;
-        }
-        
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+
         const originalText = textNode.textContent.trim();
-        
-        // Éviter de traiter plusieurs fois le même élément
-        if (contentEl.dataset.enhanced === 'true') {
-          return;
-        }
-        
-        // Chercher le numéro de chambre (format #XXX avec exactement 3 chiffres)
+        if (contentEl.dataset.enhanced === 'true') return;
+
         const roomMatch = originalText.match(/^#(\d{3})\b(.*)$/);
-        
+
         if (roomMatch) {
           const roomNumber = roomMatch[1];
           const description = roomMatch[2].trim();
-          
-          // Trouver les infos de la chambre dans StayNTouch si disponibles
-          const chambreInfo = chambresData.find(c => c.numero === roomNumber);
+
+          const chambreInfo = chambresByNumero.get(roomNumber) || null;
           
           // Calculer le vrai statut avec la fonction de l'export
           let roomStatus = null;
@@ -2571,97 +2615,6 @@ function getStatusInfoFromChambre(chambre) {
   return { text: displayText, color: color, textColor: 'white' };
 }
 
-/**
- * Créer le contenu visuel d'un ticket avec de beaux labels (ancienne version string, gardée pour compatibilité)
- * @deprecated Utiliser createVisualTicketContentDOM à la place
- */
-function createVisualTicketContent(roomNumber, description, roomStatus, chambreInfo = null) {
-  let html = '';
-
-  // Label numéro de chambre - orange si PICKUP, sinon blanc/gris
-  const isPickup = chambreInfo && chambreInfo.is_pickup;
-  if (isPickup) {
-    html += `<span class="label label-primary" style="margin-right: 6px; font-size: 11px; padding: 3px 8px; background-color: #ff8c00; border-color: #ff8c00; color: white; border-radius: 3px;">
-    #${roomNumber}
-  </span>`;
-  } else {
-    html += `<span class="label label-primary" style="margin-right: 6px; font-size: 11px; padding: 3px 8px; background-color: #f0f0f0; border: 1px solid #ccc; color: #333; border-radius: 3px;">
-      #${roomNumber}
-    </span>`;
-  }
-
-  // Label statut avec couleurs CSS directes
-  if (roomStatus) {
-    let backgroundColor = '#dc3545'; // Rouge par défaut (pour null et cas non gérés)
-    let statusText = roomStatus.replace(/[()]/g, ''); // Enlever les parenthèses
-    let displayText = statusText;
-
-    // Remplacer "o" par "recouche" pour l'affichage uniquement
-    if (statusText === 'o') {
-      displayText = 'recouche';
-    }
-    // Remplacer "bloquée/ooo" par "out of order" et "oos" par "out of service"
-    if (statusText === 'bloquée' || statusText === 'ooo') {
-      displayText = 'out of order';
-    } else if (statusText === 'oos') {
-      displayText = 'out of service';
-    }
-
-    // Couleurs selon vos spécifications exactes
-    switch (statusText) {
-      // GRIS - Out of Order / Out of Service
-      case 'bloquée':
-      case 'ooo':
-      case 'oos':
-        backgroundColor = '#6c757d'; // Gris
-        break;
-      // ORANGE
-      case 'inc':
-        backgroundColor = '#ff8c00'; // Orange
-        break;
-      // ROUGE
-      case 'day-use':
-      case 'in':
-      case 'null':
-        backgroundColor = '#dc3545'; // Rouge
-        break;
-      // BLEU
-      case 'o':
-        backgroundColor = '#007bff'; // Bleu
-        break;
-      // VERT
-      case 'out':
-      case 'out/inc':
-      case 'out/dispo':
-      case 'dispo':
-        backgroundColor = '#28a745'; // Vert
-        break;
-      // ROUGE par défaut pour cas non gérés
-      default:
-        backgroundColor = '#dc3545'; // Rouge
-    }
-
-    html += `<span style="
-      background-color: ${backgroundColor};
-      color: white;
-      padding: 3px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: bold;
-      margin-right: 6px;
-      display: inline-block;
-    ">${displayText.toUpperCase()}</span>`;
-  }
-
-  // Préserver les spans author et meta qui suivent
-  html += `${description}`;
-
-  return html;
-}
-
-/**
- * Scraper les tickets de la page actuelle
- */
 async function scrapeTickets() {
   try {
     const tableBody = document.querySelector('tbody');
@@ -2721,4 +2674,643 @@ async function scrapeTickets() {
       error: error.message
     };
   }
+}
+
+// Checklists persistantes : state coché en storage.local, statuts chambres lus en live à chaque render.
+
+const DATA_LISTS_STORAGE_KEY = 'hotel_manager_data_lists';
+
+// Sérialise toutes les mutations pour éviter qu'un clic rapide ne clobber la précédente écriture (read-modify-write race).
+let dataListsWriteQueue = Promise.resolve();
+function enqueueDataListsMutation(mutate) {
+  const next = dataListsWriteQueue.then(async () => {
+    const lists = await getDataLists();
+    const result = await mutate(lists);
+    await saveDataLists(lists);
+    return result;
+  });
+  dataListsWriteQueue = next.catch(() => {});
+  return next;
+}
+
+async function getDataLists() {
+  const result = await browser.storage.local.get([DATA_LISTS_STORAGE_KEY]);
+  return Array.isArray(result[DATA_LISTS_STORAGE_KEY]) ? result[DATA_LISTS_STORAGE_KEY] : [];
+}
+
+async function saveDataLists(lists) {
+  await browser.storage.local.set({ [DATA_LISTS_STORAGE_KEY]: lists });
+}
+
+// Empêche les noms multi-ligne qui pourraient spoofer un window.confirm (ex: '\n\nCliquez OK pour autre chose').
+function sanitizeListName(name) {
+  return String(name).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100);
+}
+
+function createDataList(name) {
+  const clean = sanitizeListName(name);
+  return enqueueDataListsMutation((lists) => {
+    const now = new Date().toISOString();
+    const newList = {
+      id: `list_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: clean,
+      createdAt: now,
+      updatedAt: now,
+      checkedRooms: []
+    };
+    lists.push(newList);
+    return newList;
+  });
+}
+
+function renameDataListById(id, newName) {
+  const clean = sanitizeListName(newName);
+  return enqueueDataListsMutation((lists) => {
+    const list = lists.find(l => l.id === id);
+    if (!list) return null;
+    list.name = clean;
+    list.updatedAt = new Date().toISOString();
+    return list;
+  });
+}
+
+function deleteDataListById(id) {
+  return enqueueDataListsMutation((lists) => {
+    const idx = lists.findIndex(l => l.id === id);
+    if (idx !== -1) lists.splice(idx, 1);
+  });
+}
+
+function toggleRoomInDataList(listId, roomNumber) {
+  return enqueueDataListsMutation((lists) => {
+    const list = lists.find(l => l.id === listId);
+    if (!list) return null;
+    const roomStr = String(roomNumber);
+    const idx = list.checkedRooms.indexOf(roomStr);
+    if (idx === -1) list.checkedRooms.push(roomStr);
+    else list.checkedRooms.splice(idx, 1);
+    list.updatedAt = new Date().toISOString();
+    return list;
+  });
+}
+
+function setRoomsCheckedInDataList(listId, roomNumbers, shouldCheck) {
+  return enqueueDataListsMutation((lists) => {
+    const list = lists.find(l => l.id === listId);
+    if (!list) return null;
+    const set = new Set(list.checkedRooms.map(String));
+    roomNumbers.forEach(r => {
+      const s = String(r);
+      if (shouldCheck) set.add(s);
+      else set.delete(s);
+    });
+    list.checkedRooms = Array.from(set);
+    list.updatedAt = new Date().toISOString();
+    return list;
+  });
+}
+
+function getTotalRoomsCount() {
+  const levels = [100, 200, 300, 400, 500, 600];
+  return levels.reduce((sum, lvl) => sum + (ROOMS_BY_LEVEL[lvl]?.length || 0), 0);
+}
+
+async function handleDataListsExport(button) {
+  const originalBackground = button.style.background;
+
+  button.style.pointerEvents = 'none';
+  button.style.opacity = '0.6';
+
+  try {
+    await openDataListsManager();
+    button.style.background = '#28a745';
+    setTimeout(() => { button.style.background = originalBackground; }, 2000);
+  } catch (error) {
+    console.error('❌ [DMBOOK] Erreur listes de données:', error);
+    button.style.background = '#dc3545';
+    setTimeout(() => { button.style.background = originalBackground; }, 2000);
+  }
+
+  setTimeout(() => {
+    button.style.pointerEvents = 'auto';
+    button.style.opacity = '1';
+  }, 3000);
+}
+
+async function openDataListsManager() {
+  while (true) {
+    const action = await showListsManagerModal();
+    if (!action || action.type === 'close') return;
+    if (action.type === 'open') {
+      await openDataListEditor(action.id);
+    }
+  }
+}
+
+function showListsManagerModal() {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('hotel-manager-data-modal');
+    if (existing) {
+      if (existing._cleanup) existing._cleanup({ type: 'close' });
+      else { console.warn('[DMBOOK] Overlay sans _cleanup détecté, remove direct'); existing.remove(); }
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'hotel-manager-data-modal';
+    overlay.style.cssText = `
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    `;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: white;
+      padding: 20px 24px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      width: 640px;
+      max-width: 95vw;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    `;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;';
+
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = 'Mes listes de données';
+    titleEl.style.cssText = 'margin: 0; font-size: 18px; font-weight: 600; color: #333;';
+    header.appendChild(titleEl);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '✕';
+    closeBtn.title = 'Fermer';
+    closeBtn.style.cssText = 'padding: 2px 10px; border: none; background: transparent; color: #666; cursor: pointer; font-size: 20px; line-height: 1;';
+    header.appendChild(closeBtn);
+
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.style.cssText = 'flex: 1; overflow-y: auto; margin-bottom: 14px;';
+    card.appendChild(body);
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'display: flex; justify-content: flex-end;';
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.textContent = '+ Nouvelle liste';
+    createBtn.style.cssText = 'padding: 8px 16px; border: none; background: #198754; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;';
+    footer.appendChild(createBtn);
+    card.appendChild(footer);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    let resolved = false;
+    const cleanup = (value) => {
+      if (resolved) return;
+      resolved = true;
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(value || { type: 'close' });
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); cleanup({ type: 'close' }); }
+    };
+
+    overlay._cleanup = cleanup;
+    closeBtn.addEventListener('click', () => cleanup({ type: 'close' }));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup({ type: 'close' }); });
+    document.addEventListener('keydown', onKey);
+
+    const totalRooms = getTotalRoomsCount();
+
+    const renderBody = async () => {
+      while (body.firstChild) body.removeChild(body.firstChild);
+      const lists = await getDataLists();
+
+      if (lists.length === 0) {
+        const empty = document.createElement('p');
+        empty.textContent = 'Aucune liste. Cliquez sur "+ Nouvelle liste" pour en créer une.';
+        empty.style.cssText = 'color: #888; font-size: 14px; text-align: center; padding: 30px 10px; margin: 0;';
+        body.appendChild(empty);
+        return;
+      }
+
+      lists.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+
+      const table = document.createElement('table');
+      table.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 13px;';
+
+      lists.forEach((list) => {
+        const tr = document.createElement('tr');
+        tr.style.cssText = 'border-bottom: 1px solid #eee;';
+
+        const tdName = document.createElement('td');
+        tdName.style.cssText = 'padding: 10px 8px; vertical-align: middle;';
+        const nameSpan = document.createElement('div');
+        nameSpan.textContent = list.name;
+        nameSpan.style.cssText = 'font-weight: 600; color: #333;';
+        tdName.appendChild(nameSpan);
+        const dateSpan = document.createElement('div');
+        try {
+          const d = new Date(list.updatedAt);
+          dateSpan.textContent = 'Modifiée le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        } catch (_) {
+          dateSpan.textContent = '';
+        }
+        dateSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 2px;';
+        tdName.appendChild(dateSpan);
+        tr.appendChild(tdName);
+
+        const tdProgress = document.createElement('td');
+        tdProgress.style.cssText = 'padding: 10px 8px; vertical-align: middle; width: 90px; text-align: center; color: #555; font-variant-numeric: tabular-nums;';
+        tdProgress.textContent = `${list.checkedRooms.length} / ${totalRooms}`;
+        tr.appendChild(tdProgress);
+
+        const tdActions = document.createElement('td');
+        tdActions.style.cssText = 'padding: 10px 8px; vertical-align: middle; width: 260px; text-align: right; white-space: nowrap;';
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.textContent = 'Ouvrir';
+        openBtn.style.cssText = 'padding: 6px 12px; border: none; background: #198754; color: white; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 4px;';
+        openBtn.addEventListener('click', () => cleanup({ type: 'open', id: list.id }));
+        tdActions.appendChild(openBtn);
+
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.textContent = 'Renommer';
+        renameBtn.style.cssText = 'padding: 6px 10px; border: 1px solid #ccc; background: white; color: #333; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;';
+        renameBtn.addEventListener('click', async () => {
+          const newName = await promptDataListName({ currentName: list.name, title: 'Renommer la liste' });
+          if (newName && newName !== list.name) {
+            await renameDataListById(list.id, newName);
+            await renderBody();
+          }
+        });
+        tdActions.appendChild(renameBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.style.cssText = 'padding: 6px 10px; border: 1px solid #dc3545; background: white; color: #dc3545; border-radius: 4px; cursor: pointer; font-size: 12px;';
+        deleteBtn.addEventListener('click', async () => {
+          if (window.confirm(`Supprimer la liste "${list.name}" ? Cette action est définitive.`)) {
+            await deleteDataListById(list.id);
+            await renderBody();
+          }
+        });
+        tdActions.appendChild(deleteBtn);
+
+        tr.appendChild(tdActions);
+        table.appendChild(tr);
+      });
+
+      body.appendChild(table);
+    };
+
+    createBtn.addEventListener('click', async () => {
+      const name = await promptDataListName({ currentName: '', title: 'Nouvelle liste' });
+      if (name) {
+        const newList = await createDataList(name);
+        cleanup({ type: 'open', id: newList.id });
+      }
+    });
+
+    renderBody().catch((err) => console.error('❌ [DMBOOK] renderBody erreur:', err));
+  });
+}
+
+function openDataListEditor(listId) {
+  return new Promise(async (resolve) => {
+    const existing = document.getElementById('hotel-manager-data-modal');
+    if (existing) {
+      if (existing._cleanup) existing._cleanup({ type: 'close' });
+      else { console.warn('[DMBOOK] Overlay sans _cleanup détecté, remove direct'); existing.remove(); }
+    }
+
+    const lists = await getDataLists();
+    const list = lists.find(l => l.id === listId);
+    if (!list) { resolve(); return; }
+
+    const chambresData = await browser.storage.local.get(['chambres_data']);
+    const chambres = chambresData.chambres_data?.chambres || [];
+    const chambresByNumero = new Map();
+    chambres.forEach(c => { if (c.numero != null) chambresByNumero.set(String(c.numero).trim(), c); });
+
+    const overlay = document.createElement('div');
+    overlay.id = 'hotel-manager-data-modal';
+    overlay.style.cssText = `
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    `;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: white;
+      padding: 16px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      width: 1100px;
+      max-width: 95vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    `;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #eee;';
+
+    const leftGroup = document.createElement('div');
+    leftGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.textContent = '←';
+    backBtn.title = 'Retour aux listes';
+    backBtn.style.cssText = 'padding: 4px 12px; border: 1px solid #ccc; background: white; color: #333; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600;';
+    leftGroup.appendChild(backBtn);
+
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = list.name;
+    titleEl.style.cssText = 'margin: 0; font-size: 17px; font-weight: 600; color: #333;';
+    leftGroup.appendChild(titleEl);
+
+    header.appendChild(leftGroup);
+
+    const rightGroup = document.createElement('div');
+    rightGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+
+    const progressEl = document.createElement('span');
+    progressEl.style.cssText = 'font-size: 13px; color: #555; font-variant-numeric: tabular-nums;';
+    rightGroup.appendChild(progressEl);
+
+    const pdfBtn = document.createElement('button');
+    pdfBtn.type = 'button';
+    pdfBtn.textContent = 'Générer PDF';
+    pdfBtn.style.cssText = 'padding: 6px 14px; border: none; background: #198754; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;';
+    rightGroup.appendChild(pdfBtn);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '✕';
+    closeBtn.title = 'Fermer';
+    closeBtn.style.cssText = 'padding: 2px 10px; border: none; background: transparent; color: #666; cursor: pointer; font-size: 20px; line-height: 1;';
+    rightGroup.appendChild(closeBtn);
+
+    header.appendChild(rightGroup);
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.style.cssText = 'flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 0 12px;';
+    card.appendChild(body);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    let resolved = false;
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve();
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    };
+    overlay._cleanup = cleanup;
+
+    const checkedSet = new Set(list.checkedRooms.map(String));
+    const totalRoomsCount = getTotalRoomsCount();
+
+    const refreshProgress = () => {
+      progressEl.textContent = `${checkedSet.size} / ${totalRoomsCount} cochées`;
+    };
+    refreshProgress();
+
+    const levels = [100, 200, 300, 400, 500, 600];
+    levels.forEach((level) => {
+      const roomsForLevel = ROOMS_BY_LEVEL[level] || [];
+      if (roomsForLevel.length === 0) return;
+
+      const col = document.createElement('div');
+      col.style.cssText = 'display: flex; flex-direction: column;';
+
+      const levelHeader = document.createElement('div');
+      levelHeader.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 4px; border-bottom: 1px solid #ddd; margin-bottom: 4px;';
+
+      const levelTitle = document.createElement('span');
+      levelTitle.textContent = `Étage ${String(level).charAt(0)}`;
+      levelTitle.style.cssText = 'font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px;';
+      levelHeader.appendChild(levelTitle);
+
+      const floorToggleBtn = document.createElement('button');
+      floorToggleBtn.type = 'button';
+      floorToggleBtn.title = 'Cocher ou décocher tout l\'étage';
+      floorToggleBtn.style.cssText = 'padding: 1px 6px; border: 1px solid #ccc; background: white; color: #555; border-radius: 3px; cursor: pointer; font-size: 10px; line-height: 1.3; white-space: nowrap;';
+      levelHeader.appendChild(floorToggleBtn);
+
+      col.appendChild(levelHeader);
+
+      const roomRefs = [];
+      const refreshFloorToggleBtn = () => {
+        const allChecked = roomRefs.length > 0 && roomRefs.every(r => r.cb.checked);
+        floorToggleBtn.textContent = allChecked ? 'Tout décocher' : 'Tout cocher';
+      };
+
+      roomsForLevel.forEach((roomNum) => {
+        const roomStr = String(roomNum);
+        const info = chambresByNumero.get(roomStr) || null;
+        const isChecked = checkedSet.has(roomStr);
+
+        // Mirror du layout PDF : col-check / col-chambre / col-statut.
+        const row = document.createElement('label');
+        row.style.cssText = 'display: grid; grid-template-columns: 22px 50px 1fr; column-gap: 6px; align-items: center; padding: 3px 2px; border-radius: 3px; cursor: pointer;';
+        row.addEventListener('mouseenter', () => { row.style.background = '#f5f5f5'; });
+        row.addEventListener('mouseleave', () => { row.style.background = 'transparent'; });
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = isChecked;
+        cb.style.cssText = 'margin: 0; cursor: pointer; accent-color: #198754; width: 14px; height: 14px; justify-self: center;';
+        row.appendChild(cb);
+
+        const numSpan = document.createElement('span');
+        numSpan.textContent = roomStr;
+        const numStyle = info && info.is_pickup
+          ? 'background: #ff8c00; color: white; border: 1px solid #ff8c00;'
+          : 'background: #f0f0f0; color: #333; border: 1px solid #ccc;';
+        numSpan.style.cssText = `
+          display: inline-block;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 700;
+          text-align: center;
+          justify-self: center;
+          min-width: 38px;
+          box-sizing: border-box;
+          ${numStyle}
+        `;
+        row.appendChild(numSpan);
+
+        let statusEl = buildStatusBadgeElement(info);
+        if (!statusEl) {
+          statusEl = document.createElement('span');
+          statusEl.textContent = '—';
+          statusEl.style.cssText = 'color: #ccc; font-size: 11px; text-align: center; display: block;';
+        }
+        row.appendChild(statusEl);
+
+        // Transparence seule (pref utilisateur, pas de barré).
+        const applyVisualState = () => {
+          if (cb.checked) {
+            numSpan.style.opacity = '0.45';
+            statusEl.style.opacity = '0.55';
+          } else {
+            numSpan.style.opacity = '1';
+            statusEl.style.opacity = '1';
+          }
+        };
+        applyVisualState();
+
+        cb.addEventListener('change', async () => {
+          cb.disabled = true;
+          try {
+            const updated = await toggleRoomInDataList(list.id, roomStr);
+            if (updated) {
+              if (cb.checked) checkedSet.add(roomStr);
+              else checkedSet.delete(roomStr);
+              applyVisualState();
+              refreshProgress();
+              refreshFloorToggleBtn();
+            }
+          } catch (err) {
+            console.error('❌ [DMBOOK] toggle room erreur:', err);
+            cb.checked = !cb.checked;
+          }
+          cb.disabled = false;
+        });
+
+        roomRefs.push({ cb, roomStr, applyVisualState });
+
+        col.appendChild(row);
+      });
+
+      refreshFloorToggleBtn();
+
+      floorToggleBtn.addEventListener('click', async () => {
+        floorToggleBtn.disabled = true;
+        const allChecked = roomRefs.every(r => r.cb.checked);
+        const shouldCheck = !allChecked;
+        try {
+          await setRoomsCheckedInDataList(list.id, roomRefs.map(r => r.roomStr), shouldCheck);
+          roomRefs.forEach(r => {
+            r.cb.checked = shouldCheck;
+            if (shouldCheck) checkedSet.add(r.roomStr);
+            else checkedSet.delete(r.roomStr);
+            r.applyVisualState();
+          });
+          refreshProgress();
+          refreshFloorToggleBtn();
+        } catch (err) {
+          console.error('❌ [DMBOOK] toggle étage erreur:', err);
+        }
+        floorToggleBtn.disabled = false;
+      });
+
+      body.appendChild(col);
+    });
+
+    pdfBtn.addEventListener('click', async () => {
+      pdfBtn.disabled = true;
+      try {
+        const snapshot = { ...list, checkedRooms: Array.from(checkedSet) };
+        const htmlContent = formatDataListToHTML(snapshot, chambres);
+        openPrintWindow(htmlContent, snapshot.name);
+      } catch (err) {
+        console.error('❌ [DMBOOK] Export PDF liste de données erreur:', err);
+      }
+      pdfBtn.disabled = false;
+    });
+
+    backBtn.addEventListener('click', () => cleanup());
+    closeBtn.addEventListener('click', () => cleanup());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+function promptDataListName(options = {}) {
+  const { currentName = '', title = 'Nom de la liste' } = options;
+  return promptTextInput({
+    id: 'hotel-manager-name-prompt',
+    title,
+    placeholder: 'Ex: Ménage étage 2',
+    currentValue: currentName,
+    okLabel: 'Valider',
+    okBgColor: '#198754',
+    zIndex: 1000001
+  });
+}
+
+function formatDataListToHTML(list, chambres) {
+  const now = new Date();
+  const today = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+
+  const chambresByNumero = new Map();
+  chambres.forEach(c => {
+    if (c.numero != null) chambresByNumero.set(String(c.numero).trim(), c);
+  });
+
+  const checkedSet = new Set((list.checkedRooms || []).map(String));
+  const levels = [100, 200, 300, 400, 500, 600];
+  let grid = '';
+
+  for (const level of levels) {
+    const roomsForLevel = ROOMS_BY_LEVEL[level] || [];
+    if (roomsForLevel.length === 0) continue;
+
+    grid += `<div class="floor-section"><table><tbody>`;
+    roomsForLevel.forEach((roomNum, index) => {
+      const numeroStr = String(roomNum);
+      const info = chambresByNumero.get(numeroStr) || null;
+      const roomLabelClass = info && info.is_pickup ? 'room-label pickup' : 'room-label';
+      const statusBadge = info ? getStatusBadgeFromChambre(info) : '';
+      const isChecked = checkedSet.has(numeroStr);
+      const classes = [];
+      if (index === roomsForLevel.length - 1) classes.push('floor-last');
+      if (isChecked) classes.push('row-checked');
+      grid += `
+        <tr class="${classes.join(' ')}">
+          <td class="col-check"><span class="checkbox"></span></td>
+          <td class="col-chambre"><span class="${roomLabelClass}">${numeroStr}</span></td>
+          <td class="col-statut">${statusBadge}</td>
+        </tr>
+      `;
+    });
+    grid += `</tbody></table></div>`;
+  }
+
+  const totalRooms = getTotalRoomsCount();
+  const doneCount = checkedSet.size;
+  return `
+    <div class="header">
+      <div class="date">${today}</div>
+      <h1>${escapeHTML(list.name)}</h1>
+      <span class="total">${doneCount} / ${totalRooms} cochées</span>
+    </div>
+    <div class="floors-grid">${grid}</div>
+  `;
 }

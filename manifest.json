@@ -1,21 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Hotel Manager - Gestion Hôtel",
-  "version": "3.0.0",
+  "version": "3.2.0",
   "description": "Extension pour scraper et consolider les données de chambres d'hôtel depuis StayNTouch PMS et Dmbook Pro",
   
   "permissions": [
     "storage",
-    "activeTab",
     "tabs",
     "scripting"
   ],
-  
+
   "host_permissions": [
     "*://*.stayntouch.com/*",
-    "*://app.eu1.stayntouch.com/*",
-    "*://*.dmbook.pro/*",
-    "*://pms-api.prodeu2-eufr.stayntouch.com/*"
+    "*://*.dmbook.pro/*"
   ],
   
   "background": {
@@ -26,8 +23,6 @@
     {
       "matches": [
         "*://*.stayntouch.com/*",
-        "*://app.stayntouch.com/*",
-        "*://app.eu1.stayntouch.com/*",
         "*://stayntouch.com/*"
       ],
       "js": ["content-scripts/stayntouch-scraper.js"],
@@ -42,7 +37,6 @@
   ],
   
   "action": {
-    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "48": "icons/icon-48.png",

@@ -11,78 +11,55 @@
  * @param {number} duration - Durée en ms (défaut: 3000)
  */
 function showToast(message, type = 'success', duration = 3000) {
-  // Supprimer les toasts existants
   const existingToast = document.getElementById('hotel-manager-toast');
-  if (existingToast) {
-    existingToast.remove();
-  }
-  
-  // Créer le toast
+  if (existingToast) existingToast.remove();
+
+  const accent = type === 'error' ? '#dc3545'
+               : type === 'info'  ? '#0d6efd'
+               : '#198754';
+
   const toast = document.createElement('div');
   toast.id = 'hotel-manager-toast';
-  
-  // Couleurs selon le type
-  let bgColor = '#28a745'; // vert par défaut (success)
-  let icon = '✅';
-  if (type === 'error') {
-    bgColor = '#dc3545';
-    icon = '❌';
-  } else if (type === 'info') {
-    bgColor = '#17a2b8';
-    icon = 'ℹ️';
-  }
-  
   toast.style.cssText = `
     position: fixed;
-    bottom: 20px;
-    left: 20px;
-    background: ${bgColor};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
+    bottom: 24px;
+    left: 24px;
+    background: #ffffff;
+    color: #1f2937;
+    padding: 10px 14px 10px 12px;
+    border-left: 3px solid ${accent};
+    border-radius: 4px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    letter-spacing: 0.1px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
     z-index: 999999;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    animation: slideInLeft 0.3s ease-out;
+    animation: slideInLeft 0.25s ease-out;
   `;
-  
-  // Ajouter l'animation CSS (seulement si pas déjà présente)
+
   if (!document.getElementById('hotel-manager-toast-styles')) {
     const style = document.createElement('style');
     style.id = 'hotel-manager-toast-styles';
     style.textContent = `
       @keyframes slideInLeft {
-        from { transform: translateX(-100%); opacity: 0; }
+        from { transform: translateX(-8px); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
       }
       @keyframes slideOutLeft {
         from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(-100%); opacity: 0; }
+        to { transform: translateX(-8px); opacity: 0; }
       }
     `;
     document.head.appendChild(style);
   }
-  
-  // Utiliser textContent au lieu de innerHTML pour la sécurité
-  const iconSpan = document.createElement('span');
-  iconSpan.textContent = icon;
 
-  const messageSpan = document.createElement('span');
-  messageSpan.textContent = message;
-
-  toast.appendChild(iconSpan);
-  toast.appendChild(messageSpan);
+  toast.textContent = message;
   document.body.appendChild(toast);
-  
-  // Retirer après la durée
+
   setTimeout(() => {
-    toast.style.animation = 'slideOutLeft 0.3s ease-in forwards';
-    setTimeout(() => toast.remove(), 300);
+    toast.style.animation = 'slideOutLeft 0.2s ease-in forwards';
+    setTimeout(() => toast.remove(), 200);
   }, duration);
 }
 
@@ -117,6 +94,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     scrapeAllPagesIntelligent().then(sendResponse);
     return true;
   }
+
+  return false;
 });
 
 /**
@@ -187,44 +166,44 @@ function isRoomStatusPage() {
   return roomsSection && searchResults && roomElements.length > 0;
 }
 
-/**
- * Observer les changements de page pour Angular SPA
- */
+// Observer SPA Angular : debounce pour éviter une rafale de setTimeout superposés sur des mutations groupées,
+// disconnect sur pagehide pour ne pas fuir l'observer à la navigation.
 function observePageChanges() {
-  // Observer les mutations DOM pour détecter les changements Angular
+  let scheduledCheck = null;
+
   const observer = new MutationObserver((mutations) => {
     let shouldCheck = false;
-    
-    mutations.forEach((mutation) => {
-      // Vérifier si des nœuds ont été ajoutés (navigation Angular)
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        // Vérifier si des éléments de chambres ont été ajoutés
-        for (let node of mutation.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.matches && node.matches('li.room, .search-results, #rooms')) {
-              shouldCheck = true;
-              break;
-            }
-          }
+    for (const mutation of mutations) {
+      if (mutation.type !== 'childList' || mutation.addedNodes.length === 0) continue;
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE
+            && node.matches
+            && node.matches('li.room, .search-results, #rooms')) {
+          shouldCheck = true;
+          break;
         }
       }
-    });
-    
-    if (shouldCheck) {
-      // Attendre un peu que Angular finisse le rendu
-      setTimeout(() => {
-        if (isRoomStatusPage()) {
-          performAutoScraping();
-        }
-      }, 1500);
+      if (shouldCheck) break;
     }
+
+    if (!shouldCheck) return;
+
+    if (scheduledCheck !== null) clearTimeout(scheduledCheck);
+    scheduledCheck = setTimeout(() => {
+      scheduledCheck = null;
+      if (isRoomStatusPage()) performAutoScraping();
+    }, 1500);
   });
 
-  // Observer tout le document
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  window.addEventListener('pagehide', () => {
+    observer.disconnect();
+    if (scheduledCheck !== null) {
+      clearTimeout(scheduledCheck);
+      scheduledCheck = null;
+    }
+  }, { once: true });
 }
 
 /**
@@ -293,18 +272,15 @@ async function performAutoScraping() {
           last_update_rooms: new Date().toISOString()
         });
 
-        // Afficher un toast de confirmation avec détails
-        const totalExpected = 80; // Nombre total de chambres attendu
-        const pageChambres = result.data.chambres.length;
-        showToast(`${allChambres.length}/${totalExpected} chambres • +${pageChambres} cette page`, 'success');
+        showToast('Données récupérées', 'success');
       } catch (storageError) {
         console.error('❌ [STAYNTOUCH] Erreur sauvegarde:', storageError);
-        showToast('Erreur: impossible de sauvegarder les données', 'error');
+        showToast('Sauvegarde impossible', 'error');
       }
     }
   } catch (error) {
     console.error('❌ [STAYNTOUCH] Erreur auto-scraping:', error);
-    showToast('Erreur lors du scraping', 'error');
+    showToast('Scraping échoué', 'error');
   } finally {
     autoScrapingInProgress = false;
   }

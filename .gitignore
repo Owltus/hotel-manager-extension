@@ -3,6 +3,7 @@
 
 # Builds / artefacts
 *.zip
+*.xpi
 
 # Python
 __pycache__/

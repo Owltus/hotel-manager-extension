@@ -40,6 +40,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleCommunicateWithStayNTouch(message).then(sendResponse);
     return true;
   }
+
+  // Aucune action reconnue — retourner false pour éviter que le sender attende une réponse qui ne viendra pas.
+  return false;
 });
 
 /**
@@ -340,10 +343,13 @@ async function handleStayNTouchIntelligent(message) {
           throw new Error(`Impossible de sauvegarder les données: ${storageError.message}`);
         }
 
-        // Fermer l'onglet si on l'a créé
+        // Fermer l'onglet si on l'a créé. Un échec de fermeture (onglet fermé par l'utilisateur) ne doit pas masquer le succès de la sauvegarde.
         if (tabs.length === 0) {
-          console.log('🗑️ [SERVICE-WORKER] Fermeture onglet temporaire');
-          await browser.tabs.remove(targetTab.id);
+          try {
+            await browser.tabs.remove(targetTab.id);
+          } catch (closeError) {
+            console.warn('⚠️ [SERVICE-WORKER] Fermeture onglet temporaire échouée:', closeError.message);
+          }
         }
 
         return scrapingResult;

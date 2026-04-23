@@ -23,13 +23,12 @@ INCLUDE = [
     "content-scripts",
     "icons",
     "lib",
-    "popup",
 ]
 
-# Motifs à exclure partout (fichiers cachés OS, backups, caches).
+# Motifs à exclure partout (fichiers cachés OS, backups, caches, artefacts de build).
 EXCLUDE_FILES = {".DS_Store", "Thumbs.db", "desktop.ini"}
-EXCLUDE_SUFFIXES = (".pyc", ".pyo", ".log", ".tmp", ".bak")
-EXCLUDE_DIRS = {"__pycache__", ".git", ".svn", ".idea", ".vscode"}
+EXCLUDE_SUFFIXES = (".pyc", ".pyo", ".log", ".tmp", ".bak", ".zip", ".xpi")
+EXCLUDE_DIRS = {"__pycache__", ".git", ".svn", ".idea", ".vscode", ".claude"}
 
 
 def should_skip(path: Path) -> bool:
